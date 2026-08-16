@@ -73,6 +73,24 @@ jobs:
             dl
           key: ${{ inputs.board }}-${{ runner.os }}-${{ hashFiles('feeds.conf.default') }}
 
+      - name: Use HTTPS for GitHub clones in CI
+        run: |
+          # Both rewrites target the same config key, so the second must use
+          # --add; a plain `git config` would replace the first value and leave
+          # scp-style git@github.com: URLs (used by openmanetd submodules)
+          # untouched.
+          git config --global --unset-all url."https://github.com/".insteadOf || true
+          git config --global --add url."https://github.com/".insteadOf "git@github.com:"
+          git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://github.com/".insteadOf "git://github.com/"
+          git config --global --get-all url."https://github.com/".insteadOf
+          # Fail fast if the rewrite is broken: these are the exact URL forms
+          # the openmanetd submodules use, and the runner has no SSH keys, so
+          # without a working rewrite these die here in seconds instead of
+          # hours into the build.
+          GIT_TERMINAL_PROMPT=0 git ls-remote git@github.com:OpenMANET/go-alfred.git HEAD
+          GIT_TERMINAL_PROMPT=0 git ls-remote ssh://git@github.com/OpenMANET/protobufs.git HEAD
+
       - name: Configure build for ${{ inputs.board }}
         run: |
           ./scripts/openmanet_setup.sh -i -b ${{ inputs.board }}
@@ -103,11 +121,6 @@ jobs:
           write_key key-build.pub "$USIGN_PUBLIC_KEY" "OpenMANET packages public key"
           chmod 600 key-build
           echo "Installed persistent package signing key."
-
-      - name: Use HTTPS for GitHub clones in CI
-        run: |
-          git config --global url."https://github.com/".insteadOf "git@github.com:"
-          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
 
       - name: Download dependencies
         run: |
