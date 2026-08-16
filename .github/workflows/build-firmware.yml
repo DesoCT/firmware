@@ -104,6 +104,11 @@ jobs:
           chmod 600 key-build
           echo "Installed persistent package signing key."
 
+      - name: Use HTTPS for GitHub clones in CI
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+
       - name: Download dependencies
         run: |
           make download -j$(nproc)
